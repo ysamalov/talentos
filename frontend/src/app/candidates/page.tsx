@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Download, X, Bot, AlertTriangle, CheckCircle, Video, Brain, Copy, ExternalLink, Loader2, Plus, User } from "lucide-react";
 import { tokensApi, candidatesApi, vacanciesApi } from "@/lib/api";
@@ -181,7 +181,12 @@ function CandidateModal({c,onClose}:{c:Candidate;onClose:()=>void}) {
         const resp = await tokensApi.generate(c.candidate_id || c.id, c.vacancy_id, type);
         link = resp.data.link;
       } catch (apiErr: any) {
-        alert(`Не удалось создать ссылку: ${apiErr?.response?.data?.detail || apiErr?.message || "Ошибка сервера"}`);
+        const detail = apiErr?.response?.data?.detail;
+        const msg = Array.isArray(detail)
+          ? detail.map((e: any) => `${e.loc?.join(".")}: ${e.msg}`).join("; ")
+          : (typeof detail === "string" ? detail : apiErr?.message || "Ошибка сервера");
+        console.error("Token error:", apiErr?.response?.data, "Candidate:", c);
+        alert(`Не удалось создать ссылку: ${msg}`);
         setter(false);
         return;
       }
@@ -525,8 +530,8 @@ export default function CandidatesPage() {
   const [showAdd, setShowAdd] = useState(false);
 
   // Load real candidate_id and vacancy_id from API and patch into candidates
-  useState(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  useEffect(() => {
+    const token = localStorage.getItem("token");
     if (!token) return;
     fetch("/api/v1/candidates/?limit=200", {
       headers: { Authorization: `Bearer ${token}` },
@@ -534,7 +539,6 @@ export default function CandidatesPage() {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!Array.isArray(data) || data.length === 0) return;
-        // Merge API data into MOCK by index (same order from seed)
         setCandidates(prev => prev.map((c, i) => {
           const api = data[i];
           if (!api) return c;
@@ -549,7 +553,7 @@ export default function CandidatesPage() {
         }));
       })
       .catch(() => {});
-  });
+  }, []);
 
   const filtered = candidates.filter((c)=>{
     if(filter==="high"&&c.score<80) return false;
