@@ -24,14 +24,6 @@ interface Message {
   via?: "text" | "voice";
 }
 
-// Extend Window for browser Speech API
-declare global {
-  interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
-  }
-}
-
 const SCREENING_QUESTIONS = [
   "Расскажите о себе и своём профессиональном пути.",
   "Почему вас интересует именно эта позиция?",
@@ -66,7 +58,7 @@ export default function ScreeningPage() {
 
   // ── Check Speech API support ──────────────────────────────────────────────
   useEffect(() => {
-    const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const SR = typeof window !== "undefined" && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
     setSpeechSupported(!!SR);
   }, []);
 
@@ -125,7 +117,7 @@ export default function ScreeningPage() {
   // ── Start voice input ─────────────────────────────────────────────────────
   const startListening = useCallback(() => {
     setMicError(null);
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
       setMicError("Ваш браузер не поддерживает голосовой ввод. Используйте Chrome или Edge.");
       return;
