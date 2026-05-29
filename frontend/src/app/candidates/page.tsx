@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Download, X, Bot, AlertTriangle, CheckCircle, Video, Brain, Copy, ExternalLink, Loader2 } from "lucide-react";
-import { tokensApi } from "@/lib/api";
+import { Search, Download, X, Bot, AlertTriangle, CheckCircle, Video, Brain, Copy, ExternalLink, Loader2, Plus, User } from "lucide-react";
+import { tokensApi, candidatesApi, vacanciesApi } from "@/lib/api";
 
 interface ScoreBreakdown {
   skills:number; experience:number; seniority:number; culture:number;
@@ -16,7 +16,7 @@ interface Candidate {
   location:string; source:string; experience_years:number;
   expected_salary:number; breakdown:ScoreBreakdown; skills_list:string[];
   vacancy_id:string;
-  candidate_id?:string; // real Candidate UUID when loaded from API (id is CandidateVacancy.id)
+  candidate_id?:string; // real Candidate UUID (id is CandidateVacancy.id when loaded from API)
 }
 
 const STAGE:Record<string,string> = {
@@ -181,7 +181,6 @@ function CandidateModal({c,onClose}:{c:Candidate;onClose:()=>void}) {
         const resp = await tokensApi.generate(c.candidate_id || c.id, c.vacancy_id, type);
         link = resp.data.link;
       } catch (apiErr: any) {
-        // API failed - show error, don't use a fake token that will 404
         alert(`Не удалось создать ссылку: ${apiErr?.response?.data?.detail || apiErr?.message || "Ошибка сервера"}`);
         setter(false);
         return;
@@ -359,12 +358,173 @@ function CandidateModal({c,onClose}:{c:Candidate;onClose:()=>void}) {
   );
 }
 
+
+// ─── Add Candidate Modal ──────────────────────────────────────────────────────
+const COLORS = ["#6366f1","#10b981","#f59e0b","#a855f7","#3b82f6","#ef4444","#ec4899","#0ea5e9"];
+const SOURCES = [{val:"linkedin",lbl:"LinkedIn"},{val:"hh",lbl:"HeadHunter"},{val:"referral",lbl:"Реферал"},{val:"direct",lbl:"Прямой"}];
+
+interface AddCandidateForm {
+  full_name:string; email:string; phone:string;
+  location:string; source:string; vacancy_id:string;
+}
+
+function AddCandidateModal({ onClose, onAdded }:{ onClose:()=>void; onAdded:(c:Candidate)=>void }) {
+  const [form, setForm] = useState<AddCandidateForm>({
+    full_name:"", email:"", phone:"", location:"", source:"linkedin", vacancy_id:"",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string|null>(null);
+
+  const set = (k: keyof AddCandidateForm, v: string) =>
+    setForm(prev => ({...prev, [k]:v}));
+
+  const handleSubmit = async () => {
+    if (!form.full_name.trim()) { setError("Имя кандидата обязательно"); return; }
+    if (!form.email.trim()) { setError("Email обязателен"); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = {
+        full_name: form.full_name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim() || null,
+        location: form.location.trim() || null,
+        source: form.source,
+        vacancy_id: form.vacancy_id.trim() || null,
+        tags: [],
+      };
+      const resp = await candidatesApi.create(payload);
+      const initials = form.full_name.trim().split(" ").map((w:string)=>w[0]?.toUpperCase()||"").slice(0,2).join("");
+      const color = COLORS[Math.floor(Math.random()*COLORS.length)];
+      const newCandidate: Candidate = {
+        id: String(resp.data.id || Date.now()),
+        candidate_id: String(resp.data.id || Date.now()),
+        vacancy_id: form.vacancy_id || "v1",
+        full_name: form.full_name.trim(),
+        initials,
+        role: "—",
+        score: 0,
+        skills: 0,
+        stage: "applied",
+        color,
+        location: form.location || "—",
+        source: form.source,
+        experience_years: 0,
+        expected_salary: 0,
+        skills_list: [],
+        breakdown: {
+          skills:0,experience:0,seniority:0,culture:0,
+          weights:{skills:35,experience:30,seniority:20,culture:15},
+          strengths:[],risks:[],missing_skills:[],
+          recommendation:"—",summary:"Кандидат добавлен вручную, AI-анализ ещё не выполнен.",
+        },
+      };
+      onAdded(newCandidate);
+      onClose();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || err?.message || "Ошибка при создании кандидата");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls = "w-full border border-[hsl(var(--border))] rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-[hsl(var(--primary))] transition-colors";
+  const labelCls = "block text-[10px] font-mono font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-1";
+
+  return (
+    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4"
+      onClick={onClose}>
+      <motion.div initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}}
+        transition={{type:"spring",damping:28,stiffness:300}}
+        className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col"
+        onClick={e=>e.stopPropagation()}>
+
+        <div className="sm:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-[hsl(var(--muted))]"/>
+        </div>
+
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))] flex-shrink-0">
+          <div>
+            <h2 className="font-bold text-[hsl(var(--foreground))]">Новый кандидат</h2>
+            <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">AI-скоринг запустится автоматически</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg border border-[hsl(var(--border))] flex items-center justify-center"><X size={14}/></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">{error}</div>
+          )}
+
+          <div>
+            <label className={labelCls}>Имя и фамилия *</label>
+            <input className={inputCls} placeholder="Алибек Жақсыбеков"
+              value={form.full_name} onChange={e=>set("full_name",e.target.value)}/>
+          </div>
+
+          <div>
+            <label className={labelCls}>Email *</label>
+            <input className={inputCls} type="email" placeholder="alibek@example.com"
+              value={form.email} onChange={e=>set("email",e.target.value)}/>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Телефон</label>
+              <input className={inputCls} type="tel" placeholder="+7 777 000 00 00"
+                value={form.phone} onChange={e=>set("phone",e.target.value)}/>
+            </div>
+            <div>
+              <label className={labelCls}>Город</label>
+              <input className={inputCls} placeholder="Алматы"
+                value={form.location} onChange={e=>set("location",e.target.value)}/>
+            </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>Источник</label>
+            <div className="grid grid-cols-2 gap-2">
+              {SOURCES.map(s=>(
+                <button key={s.val} onClick={()=>set("source",s.val)}
+                  className={`text-xs py-2 rounded-lg border transition-colors ${form.source===s.val?"bg-[hsl(var(--primary))] text-white border-[hsl(var(--primary))]":"bg-white text-[hsl(var(--secondary-foreground))] border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))]"}`}>
+                  {SRC_ICON[s.val]} {s.lbl}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>ID вакансии (необязательно)</label>
+            <input className={inputCls} placeholder="UUID вакансии"
+              value={form.vacancy_id} onChange={e=>set("vacancy_id",e.target.value)}/>
+            <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1">Скопируйте из URL вакансии или оставьте пустым</p>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-[hsl(var(--border))] flex gap-2 flex-shrink-0">
+          <button onClick={onClose}
+            className="flex-1 border border-[hsl(var(--border))] text-[hsl(var(--secondary-foreground))] rounded-xl py-2.5 text-sm hover:bg-[hsl(var(--secondary))] transition-colors">
+            Отмена
+          </button>
+          <button onClick={handleSubmit} disabled={saving}
+            className="flex-1 bg-[hsl(var(--primary))] text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
+            {saving ? <><Loader2 size={14} className="animate-spin"/> Сохранение...</> : <><User size={14}/> Добавить</>}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function CandidatesPage() {
+  const [candidates, setCandidates] = useState<Candidate[]>(MOCK);
   const [filter,setFilter] = useState("all");
   const [search,setSearch] = useState("");
   const [selected,setSelected] = useState<Candidate|null>(null);
+  const [showAdd, setShowAdd] = useState(false);
 
-  const filtered = MOCK.filter((c)=>{
+  const filtered = candidates.filter((c)=>{
     if(filter==="high"&&c.score<80) return false;
     if(filter==="rejected"&&c.stage!=="rejected") return false;
     if(search&&!c.full_name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -466,7 +626,10 @@ export default function CandidatesPage() {
         </div>
       </div>
 
-      <AnimatePresence>{selected&&<CandidateModal c={selected} onClose={()=>setSelected(null)}/>}</AnimatePresence>
+      <AnimatePresence>
+        {selected&&<CandidateModal c={selected} onClose={()=>setSelected(null)}/>}
+        {showAdd&&<AddCandidateModal onClose={()=>setShowAdd(false)} onAdded={(c)=>setCandidates(prev=>[c,...prev])}/>}
+      </AnimatePresence>
     </div>
   );
 }
