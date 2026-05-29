@@ -16,6 +16,7 @@ interface Candidate {
   location:string; source:string; experience_years:number;
   expected_salary:number; breakdown:ScoreBreakdown; skills_list:string[];
   vacancy_id:string;
+  candidate_id?:string; // real Candidate UUID when loaded from API (id is CandidateVacancy.id)
 }
 
 const STAGE:Record<string,string> = {
