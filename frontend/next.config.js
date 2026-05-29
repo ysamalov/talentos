@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Force empty API URL so axios uses relative paths → Next.js rewrite proxy.
+  // This overrides any NEXT_PUBLIC_API_URL from .env or docker-compose at BUILD TIME.
+  env: {
+    NEXT_PUBLIC_API_URL: "",
+    NEXT_PUBLIC_WS_URL: "",
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.talentos.ai" },
