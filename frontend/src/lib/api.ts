@@ -1,7 +1,5 @@
 import axios from "axios";
 
-// Empty string = relative URLs → goes through Next.js rewrite proxy (no CORS).
-// Set NEXT_PUBLIC_API_URL only for local dev outside Docker.
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export const apiClient = axios.create({
@@ -9,37 +7,10 @@ export const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Inject JWT token
-apiClient.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("access_token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
 
-// Handle 401 → redirect to login
-apiClient.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401 && typeof window !== "undefined") {
-      localStorage.removeItem("access_token");
-      window.location.href = "/login";
-    }
-    return Promise.reject(err);
-  }
-);
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
-export const authApi = {
-  login: (email: string, password: string) =>
-    apiClient.post("/auth/login", new URLSearchParams({ username: email, password }), {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    }),
-  register: (data: { email: string; password: string; full_name: string; company_name: string }) =>
-    apiClient.post("/auth/register", data),
-  me: () => apiClient.get("/auth/me"),
-};
+
+
 
 // ─── Vacancies ────────────────────────────────────────────────────────────────
 export const vacanciesApi = {

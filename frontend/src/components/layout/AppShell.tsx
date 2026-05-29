@@ -7,7 +7,7 @@ import { useAuthStore } from "@/store/auth";
 import {
   LayoutDashboard, Briefcase, Users, GitBranch,
   Bot, BarChart3, ClipboardList, TrendingUp,
-  LogOut, Bell, Settings, Menu, X,
+  Bell, Settings, Menu, X,
 } from "lucide-react";
 
 interface NavItem {
@@ -38,7 +38,7 @@ const NAV: NavSection[] = [
 
 function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   return (
     <div className="flex flex-col h-full bg-white border-r border-[hsl(var(--border))]">
       <div className="px-5 py-4 border-b border-[hsl(var(--border))] flex items-center gap-3">
@@ -89,9 +89,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
             <div className="text-xs font-medium truncate text-[hsl(var(--foreground))]">{user?.full_name ?? "Гость"}</div>
             <div className="text-[10px] text-[hsl(var(--muted-foreground))] font-mono uppercase tracking-wider">{user?.role ?? "recruiter"}</div>
           </div>
-          <button onClick={logout} className="text-[hsl(var(--muted-foreground))] hover:text-red-500 transition-colors p-1 rounded" aria-label="Выйти">
-            <LogOut size={13} />
-          </button>
+          
         </div>
       </div>
     </div>

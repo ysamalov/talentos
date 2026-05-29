@@ -17,9 +17,8 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.models.models import (
     CandidateToken, TokenType, Candidate, Vacancy,
-    CandidateVacancy, User
+    CandidateVacancy
 )
-from app.api.v1.endpoints.auth import get_current_user
 
 router = APIRouter()
 
@@ -58,17 +57,15 @@ class VideoAnalysisResult(BaseModel):
 async def generate_token(
     data: GenerateTokenRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Creates a one-time-use (or limited TTL) token for a candidate.
     Returns the token and the corresponding public link.
     """
-    # Verify candidate belongs to this company
+    # No auth — fetch candidate directly
     c_res = await db.execute(
         select(Candidate).where(
             Candidate.id == data.candidate_id,
-            Candidate.company_id == current_user.company_id,
         )
     )
     candidate = c_res.scalar_one_or_none()
@@ -100,7 +97,7 @@ async def generate_token(
         token_type=data.token_type,
         candidate_id=data.candidate_id,
         vacancy_id=data.vacancy_id,
-        created_by_id=current_user.id,
+        created_by_id=None,
         expires_at=expires,
     )
     db.add(tok)
@@ -266,7 +263,6 @@ async def analyze_video_transcript(
 async def get_video_results(
     token: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     res = await db.execute(
         select(CandidateToken).where(CandidateToken.token == token)
