@@ -48,7 +48,7 @@ export default function VideoPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<any>(null);
-  const API = process.env.NEXT_PUBLIC_API_URL || "";
+  const API = process.env.NEXT_PUBLIC_API_URL ?? "";
 
   useEffect(() => {
     fetch(`${API}/api/v1/tokens/resolve/${token}`)

@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Empty string = relative URLs → goes through Next.js rewrite proxy (no CORS).
+// Set NEXT_PUBLIC_API_URL only for local dev outside Docker.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export const apiClient = axios.create({
   baseURL: `${API_URL}/api/v1`,

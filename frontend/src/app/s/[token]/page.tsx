@@ -54,7 +54,7 @@ export default function ScreeningPage() {
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const API = process.env.NEXT_PUBLIC_API_URL ?? "";
 
   // ── Check Speech API support ──────────────────────────────────────────────
   useEffect(() => {
