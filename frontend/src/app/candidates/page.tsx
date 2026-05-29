@@ -524,6 +524,33 @@ export default function CandidatesPage() {
   const [selected,setSelected] = useState<Candidate|null>(null);
   const [showAdd, setShowAdd] = useState(false);
 
+  // Load real candidate_id and vacancy_id from API and patch into candidates
+  useState(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) return;
+    fetch("/api/v1/candidates/?limit=200", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!Array.isArray(data) || data.length === 0) return;
+        // Merge API data into MOCK by index (same order from seed)
+        setCandidates(prev => prev.map((c, i) => {
+          const api = data[i];
+          if (!api) return c;
+          return {
+            ...c,
+            id: api.id,
+            candidate_id: api.candidate_id,
+            vacancy_id: api.vacancy_id || c.vacancy_id,
+            stage: api.stage || c.stage,
+            score: api.ai_score ?? c.score,
+          };
+        }));
+      })
+      .catch(() => {});
+  });
+
   const filtered = candidates.filter((c)=>{
     if(filter==="high"&&c.score<80) return false;
     if(filter==="rejected"&&c.stage!=="rejected") return false;
