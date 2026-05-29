@@ -116,19 +116,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
     if (!storedToken) {
       router.replace("/login");
       return;
     }
     if (user) { setChecking(false); return; }
+    // Try stored user first (fast path)
+    const storedUserRaw = localStorage.getItem("user");
+    if (storedUserRaw) {
+      try {
+        const storedUser = JSON.parse(storedUserRaw);
+        setAuth(storedUser, storedToken);
+        setChecking(false);
+        return;
+      } catch {}
+    }
     // Validate token by fetching /me
-    authApi.me()
-      .then((res) => {
-        setAuth(res.data, storedToken);
+    fetch("/api/v1/auth/me", { headers: { Authorization: `Bearer ${storedToken}` } })
+      .then(r => { if (!r.ok) throw new Error("unauth"); return r.json(); })
+      .then((userData) => {
+        localStorage.setItem("user", JSON.stringify(userData));
+        setAuth(userData, storedToken);
         setChecking(false);
       })
       .catch(() => {
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
         router.replace("/login");
       });
   }, []);

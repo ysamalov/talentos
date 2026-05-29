@@ -1,12 +1,7 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { authApi } from "@/lib/api";
-import { useAuthStore } from "@/store/auth";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const { setAuth } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,79 +12,92 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await authApi.login(email, password);
-      const { access_token } = res.data;
-      // Fetch user info
-      const { default: axios } = await import("axios");
-      const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-      const meRes = await axios.get(`${API_URL}/api/v1/auth/me`, {
+      const form = new URLSearchParams();
+      form.append("username", email);
+      form.append("password", password);
+
+      const res = await fetch("/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString(),
+      });
+
+      if (!res.ok) {
+        setError("Неверный email или пароль");
+        return;
+      }
+
+      const { access_token } = await res.json();
+
+      const meRes = await fetch("/api/v1/auth/me", {
         headers: { Authorization: `Bearer ${access_token}` },
       });
-      setAuth(meRes.data, access_token);
-      router.push("/dashboard");
+      const user = await meRes.json();
+
+      localStorage.setItem("token", access_token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      window.location.href = "/dashboard";
     } catch {
-      setError("Неверный email или пароль");
+      setError("Ошибка соединения с сервером");
     } finally {
       setLoading(false);
     }
   };
 
-  const fillDemo = () => {
-    setEmail("demo@talentos.ai");
-    setPassword("demo1234");
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))] px-4">
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-9 h-9 rounded-xl bg-[hsl(var(--primary))] flex items-center justify-center">
-            <span className="font-mono text-xs font-bold text-white">HR</span>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f9fafb", padding: "16px" }}>
+      <div style={{ width: "100%", maxWidth: "360px" }}>
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: "#6366f1", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: "8px" }}>
+            <span style={{ color: "white", fontWeight: "bold", fontSize: "12px", fontFamily: "monospace" }}>HR</span>
           </div>
-          <div>
-            <div className="font-semibold text-base tracking-tight">TalentRush</div>
-            <div className="text-[9px] font-mono bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] px-1.5 py-0.5 rounded inline-block tracking-widest">AI РЕКРУТИНГ</div>
-          </div>
+          <div style={{ fontWeight: 600, fontSize: "16px" }}>TalentRush</div>
+          <div style={{ fontSize: "10px", color: "#6366f1", fontFamily: "monospace", letterSpacing: "2px" }}>AI РЕКРУТИНГ</div>
         </div>
 
-        <div className="bg-white border border-[hsl(var(--border))] rounded-2xl p-6 shadow-sm">
-          <h1 className="text-lg font-semibold mb-1">Добро пожаловать</h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mb-6">Войдите в рабочее пространство</p>
+        <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: "16px", padding: "24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+          <h1 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "4px" }}>Добро пожаловать</h1>
+          <p style={{ fontSize: "13px", color: "#6b7280", marginBottom: "24px" }}>Войдите в рабочее пространство</p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xs font-medium text-[hsl(var(--foreground))] block mb-1.5">Эл. почта</label>
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "12px", fontWeight: 500, display: "block", marginBottom: "6px" }}>Эл. почта</label>
               <input
-                type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                className="w-full border border-[hsl(var(--border))] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[hsl(var(--primary)/0.3)] focus:border-[hsl(var(--primary))] transition-all"
+                type="email" value={email} onChange={e => setEmail(e.target.value)} required
                 placeholder="you@company.com"
+                style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 12px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
               />
             </div>
-            <div>
-              <label className="text-xs font-medium text-[hsl(var(--foreground))] block mb-1.5">Пароль</label>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "12px", fontWeight: 500, display: "block", marginBottom: "6px" }}>Пароль</label>
               <input
-                type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
-                className="w-full border border-[hsl(var(--border))] rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[hsl(var(--primary)/0.3)] focus:border-[hsl(var(--primary))] transition-all"
+                type="password" value={password} onChange={e => setPassword(e.target.value)} required
                 placeholder="••••••••"
+                style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 12px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
               />
             </div>
 
             {error && (
-              <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "8px 12px", fontSize: "12px", color: "#dc2626", marginBottom: "12px" }}>
+                {error}
+              </div>
             )}
 
             <button
               type="submit" disabled={loading}
-              className="w-full bg-[hsl(var(--primary))] text-white rounded-lg py-2.5 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-60"
+              style={{ width: "100%", background: loading ? "#a5b4fc" : "#6366f1", color: "white", border: "none", borderRadius: "8px", padding: "12px", fontSize: "14px", fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}
             >
               {loading ? "Вход..." : "Войти"}
             </button>
           </form>
 
-          <div className="mt-4 pt-4 border-t border-[hsl(var(--border))]">
-            <div className="text-[10px] font-mono text-[hsl(var(--muted-foreground))] text-center mb-2 uppercase tracking-widest">Демо-доступ</div>
-            <button onClick={fillDemo} className="w-full text-xs text-[hsl(var(--primary))] border border-[hsl(var(--primary)/0.3)] rounded-lg py-2 hover:bg-[hsl(var(--primary)/0.05)] transition-colors font-mono">
+          <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #f3f4f6" }}>
+            <div style={{ fontSize: "10px", fontFamily: "monospace", color: "#9ca3af", textAlign: "center", marginBottom: "8px", letterSpacing: "2px", textTransform: "uppercase" }}>Демо-доступ</div>
+            <button
+              onClick={() => { setEmail("demo@talentos.ai"); setPassword("demo1234"); }}
+              style={{ width: "100%", background: "transparent", border: "1px solid #c7d2fe", borderRadius: "8px", padding: "8px", fontSize: "12px", color: "#6366f1", cursor: "pointer", fontFamily: "monospace" }}
+            >
               demo@talentos.ai / demo1234
             </button>
           </div>
