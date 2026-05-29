@@ -177,12 +177,13 @@ function CandidateModal({c,onClose}:{c:Candidate;onClose:()=>void}) {
       // In demo mode (no real API), generate a mock token link
       let link: string;
       try {
-        const resp = await tokensApi.generate(c.id, c.vacancy_id, type);
+        const resp = await tokensApi.generate(c.candidate_id || c.id, c.vacancy_id, type);
         link = resp.data.link;
-      } catch {
-        // Demo fallback: generate a fake token for UI demonstration
-        const fakeToken = btoa(`${c.id}:${type}:${Date.now()}`).replace(/[+/=]/g,"").slice(0,32);
-        link = type === "ai_screening" ? `/s/${fakeToken}` : `/v/${fakeToken}`;
+      } catch (apiErr: any) {
+        // API failed - show error, don't use a fake token that will 404
+        alert(`Не удалось создать ссылку: ${apiErr?.response?.data?.detail || apiErr?.message || "Ошибка сервера"}`);
+        setter(false);
+        return;
       }
       setTokenModal({ type, link });
     } finally {

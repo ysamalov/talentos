@@ -81,11 +81,26 @@ async def list_candidates(
             for cv, c in rows
         ]
     else:
-        q = (select(Candidate)
+        # Join with CandidateVacancy to always expose vacancy_id and cv.id for token generation
+        q = (select(CandidateVacancy, Candidate)
+             .join(Candidate, CandidateVacancy.candidate_id == Candidate.id)
              .where(Candidate.company_id == current_user.company_id)
              .offset(skip).limit(limit).order_by(Candidate.created_at.desc()))
         result = await db.execute(q)
-        return [{"id": str(c.id), "full_name": c.full_name, "email": c.email} for c in result.scalars()]
+        rows = result.all()
+        return [
+            {
+                "id": str(cv.id),
+                "candidate_id": str(c.id),
+                "vacancy_id": str(cv.vacancy_id),
+                "full_name": c.full_name,
+                "email": c.email,
+                "stage": cv.stage,
+                "ai_score": cv.ai_score,
+                "applied_at": cv.applied_at.isoformat() if cv.applied_at else None,
+            }
+            for cv, c in rows
+        ]
 
 
 @router.post("/", status_code=201)
@@ -158,3 +173,4 @@ async def get_candidate(
         "tags": c.tags,
         "source": c.source,
     }
+# PATCH APPLIED VIA APPEND - see below
