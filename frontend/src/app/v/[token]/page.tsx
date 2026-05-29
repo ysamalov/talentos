@@ -78,10 +78,13 @@ export default function VideoPage() {
     
     try {
       // Request camera and microphone permissions
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Доступ к камере/микрофону недоступен. Убедитесь, что страница открыта по HTTPS.");
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
-      video: videoEnabled,
-      audio: true
-    });
+        video: videoEnabled,
+        audio: true,
+      });
     
     streamRef.current = stream;
     
