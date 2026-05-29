@@ -9,6 +9,11 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# NEXT_PUBLIC_API_URL must be empty string so all API calls go through
+# Next.js rewrites (same origin) — no CORS needed.
+ENV NEXT_PUBLIC_API_URL=""
+ENV NEXT_PUBLIC_WS_URL=""
+
 RUN npm run build
 
 EXPOSE 3000
