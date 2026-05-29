@@ -7,10 +7,39 @@ export const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// Attach token from localStorage on every request
+apiClient.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("token");
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
+// Redirect to login on 401
+apiClient.interceptors.response.use(
+  (r) => r,
+  (error) => {
+    if (error.response?.status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
 
-
-
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+export const authApi = {
+  login: (email: string, password: string) => {
+    const form = new URLSearchParams();
+    form.append("username", email);
+    form.append("password", password);
+    return axios.post(`${API_URL}/api/v1/auth/login`, form, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+  },
+  me: () => apiClient.get("/auth/me"),
+};
 
 // ─── Vacancies ────────────────────────────────────────────────────────────────
 export const vacanciesApi = {
@@ -58,13 +87,14 @@ export const screeningApi = {
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
 export const analyticsApi = {
-  funnel: () => apiClient.get("/analytics/funnel"),
   overview: () => apiClient.get("/analytics/overview"),
+  funnel: () => apiClient.get("/analytics/funnel"),
 };
 
 // ─── Onboarding ───────────────────────────────────────────────────────────────
 export const onboardingApi = {
-  generate: (data: { candidate_id: string; vacancy_id: string; start_date?: string }) =>
+  list: () => apiClient.get("/onboarding"),
+  generate: (data: { candidate_id: string; vacancy_id: string }) =>
     apiClient.post("/onboarding/generate", data),
   generateIDP: (data: { candidate_id: string; vacancy_id: string; current_role: string; target_role: string }) =>
     apiClient.post("/onboarding/idp/generate", data),

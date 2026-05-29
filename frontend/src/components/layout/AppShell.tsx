@@ -1,13 +1,14 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/store/auth";
+import { authApi } from "@/lib/api";
 import {
   LayoutDashboard, Briefcase, Users, GitBranch,
   Bot, BarChart3, ClipboardList, TrendingUp,
-  Bell, Settings, Menu, X,
+  Bell, Settings, Menu, X, LogOut,
 } from "lucide-react";
 
 interface NavItem {
@@ -38,7 +39,14 @@ const NAV: NavSection[] = [
 
 function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
   const pathname = usePathname();
-  const { user } = useAuthStore();
+  const router = useRouter();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
   return (
     <div className="flex flex-col h-full bg-white border-r border-[hsl(var(--border))]">
       <div className="px-5 py-4 border-b border-[hsl(var(--border))] flex items-center gap-3">
@@ -87,9 +95,12 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium truncate text-[hsl(var(--foreground))]">{user?.full_name ?? "Гость"}</div>
-            <div className="text-[10px] text-[hsl(var(--muted-foreground))] font-mono uppercase tracking-wider">{user?.role ?? "recruiter"}</div>
+            <div className="text-[10px] text-[hsl(var(--muted-foreground))] font-mono uppercase tracking-wider">{user?.role ?? ""}</div>
           </div>
-          
+          <button onClick={handleLogout} title="Выйти"
+            className="w-6 h-6 flex items-center justify-center rounded text-[hsl(var(--muted-foreground))] hover:text-red-500 transition-colors flex-shrink-0">
+            <LogOut size={13} />
+          </button>
         </div>
       </div>
     </div>
@@ -98,8 +109,39 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { token, user, setAuth } = useAuthStore();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token");
+    if (!storedToken) {
+      router.replace("/login");
+      return;
+    }
+    if (user) { setChecking(false); return; }
+    // Validate token by fetching /me
+    authApi.me()
+      .then((res) => {
+        setAuth(res.data, storedToken);
+        setChecking(false);
+      })
+      .catch(() => {
+        localStorage.removeItem("token");
+        router.replace("/login");
+      });
+  }, []);
+
   const currentLabel = NAV.flatMap((s) => s.items).find((i) => pathname.startsWith(i.href))?.label ?? "TalentRush";
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))]">
+        <div className="text-sm text-[hsl(var(--muted-foreground))] font-mono animate-pulse">Загрузка...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[hsl(var(--background))]">
